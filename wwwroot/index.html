@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+	<head>
+        <title>Lazy Jones</title>
+        <script src="libs/phaser/phaser.min.js"></script>
+        <script src="scripts/boot.js"></script>
+		<script src="scripts/preload.js"></script>
+		<script src="scripts/title1.js"></script>
+		<script src="scripts/title2.js"></script>
+		<script src="scripts/select_controls.js"></script>
+		<script src="scripts/select_lives.js"></script>
+        <script src="scripts/lobby.js"></script>
+        <script src="scripts/gameover.js"></script>
+        <style>
+            body{margin:0}
+        </style>
+		<script>
+			(function() {
+				var game = new Phaser.Game(386, 284, Phaser.CANVAS, "game");
+				game.state.add("boot",boot);
+				game.state.add("preload",preload);
+				game.state.add("title1",title1);
+				game.state.add("title2",title2);
+				game.state.add("select_controls",select_controls);
+				game.state.add("select_lives",select_lives);
+				game.state.add("lobby",lobby);
+				game.state.add("gameover",gameover);
+                game.state.start("boot");
+			})();    
+		</script>
+    </head>
+    <body>
+    </body>
+</html>
