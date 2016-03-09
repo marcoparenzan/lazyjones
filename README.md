@@ -1,2 +1,2 @@
-# lazyjones
+# Lazy Jones
 Lazy Jones

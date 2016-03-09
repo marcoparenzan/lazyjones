@@ -1,5 +1,5 @@
 var boot = function(game){
-	console.log("%cStarting my awesome game", "color:white; background:red");
+	console.log("%cStarting Lazy Jones HTML5+JavaScript", "color:white; background:red");
 };
   
 boot.prototype = {
@@ -10,6 +10,6 @@ boot.prototype = {
 		this.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
 		this.scale.pageAlignHorizontally = true;
 		this.scale.setScreenSize();
-		this.game.state.start("preload");
+		this.game.state.start("preload");		
 	}
 }
