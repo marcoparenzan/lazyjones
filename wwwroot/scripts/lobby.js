@@ -5,16 +5,77 @@
 var lobby = function (game) { };
 
 lobby.prototype = {
+    
+    //////
+    
+    _stickyBody: function(xxx) {
+        this.game.physics.enable(xxx, Phaser.Physics.ARCADE);
+        xxx.body.immovable = true;
+        xxx.body.allowGravity = false;
+    },
+    
+    _gravityBody: function(xxx) {
+        this.game.physics.enable(xxx, Phaser.Physics.ARCADE);
+        xxx.enableBody = true;
+        xxx.body.allowGravity = true;  
+    },
+
+    ///
+    /// Phaser events
+    ///
 
     preload: function () {
+        this._preloadImages();
+        this._preloadSpritesheets();
+    },
+    
+    create: function () {
+        this._createWorld();
+        this._createObjects();
+        this._reset();
+    },
+        
+    render: function() {
+        // jones info
+        this.game.debug.text("jones.body.y=" + this.jones.body.y, 10, 10);
+        this.game.debug.text("jones.body.velocity.y=" + this.jones.body.velocity.y, 10, 20);
+        // this.game.debug.text(this.jones);
+        // camera debugging
+        // this.game.debug.text("cameraIndex=" + this.cameraIndex, 10, 10);
+        // this.game.debug.text("this.game.camera.x=" + this.game.camera.x, 10, 30);
+        // this.game.debug.text("this.cameraX[this.cameraIndex-1]=" + this.cameraX[this.cameraIndex-1], 10, 50);
+        // this.game.debug.text("this.cameraX[this.cameraIndex+1]=" + this.cameraX[this.cameraIndex+1], 10, 70);
+    },
+    
+    update: function() {
+        switch(this._updateState)  {
+            case "reset":
+                this._updateReset();
+                break;
+            case "normal":
+                this._updateNormal();
+                break;
+            case "fail":
+                this._updateFail();
+                break;
+        }
+    },
+    
+    /////////
+    
+    _preloadImages: function() {
         this.game.load.image('lobby', 'assets/background/lobby.png');
         this.game.load.image('floor', 'assets/background/floor.png');
         this.game.load.image('ceiling', 'assets/background/ceiling.png');
         this.game.load.image('logo', 'assets/lazyjones_lobby.png');
+    },
+    
+    _preloadSpritesheets: function() {
         this.game.load.spritesheet('yellow-door', 'assets/spritesheet/yellow-door.png');
         this.game.load.spritesheet('red-door', 'assets/spritesheet/red-door.png',24 ,24);
         this.game.load.spritesheet('gray-door', 'assets/spritesheet/gray-door.png',24 ,24);
-        this.game.load.spritesheet('elevator-door', 'assets/spritesheet/elevator-door.png',40 ,30);
+        this.game.load.spritesheet('elevator-door', 'assets/spritesheet/elevator-door.png',40 ,32);        
+        this.game.load.spritesheet('elevator', 'assets/spritesheet/elevator.png',40 ,32);
         this.game.load.spritesheet('yellow-door', 'assets/spritesheet/yellow-door.png',24 ,24);
         this.game.load.spritesheet('plant', 'assets/spritesheet/plant.png',24 ,24);
         this.game.load.spritesheet('railing', 'assets/spritesheet/railing.png',24 ,24);
@@ -23,7 +84,8 @@ lobby.prototype = {
         this.game.load.spritesheet('c-enemy', 'assets/spritesheet/c-enemy.png', 24, 21);
         this.game.load.spritesheet('jones', 'assets/spritesheet/jones.png', 24, 21);
     },
-    create: function () {
+    
+    _createWorld: function() {
         this._updateState = "reset";         
                 
         this.background = this.game.add.tileSprite(0, 0, 513, 284, 'lobby');
@@ -35,6 +97,9 @@ lobby.prototype = {
 
         this.platforms = this.game.add.group();
         this.platforms.enableBody = true;
+    },
+        
+    _createObjects: function() {
         
         this.floors = [
               this.createFloor(110)
@@ -48,112 +113,148 @@ lobby.prototype = {
             , this.createCeiling(222)
         ];
         
-        this.sticky_things = {
-              roomDoor21: this.createRoomDoor( 24, 110, "yellow")
-            , roomDoor22: this.createRoomDoor( 89, 110, "yellow")
-            , roomDoor23: this.createRoomDoor(152, 110, "yellow")
-            , roomDoor24: this.createRoomDoor(345, 110, "yellow")
-            , roomDoor25: this.createRoomDoor(409, 110, "yellow")
-            , roomDoor26: this.createRoomDoor(473, 110, "yellow")
-            , roomDoor11: this.createRoomDoor( 24, 166, "red")
-            , roomDoor12: this.createRoomDoor( 89, 166, "red")
-            , roomDoor13: this.createRoomDoor(152, 166, "red")
-            , roomDoor14: this.createRoomDoor(345, 166, "red")
-            , roomDoor15: this.createRoomDoor(409, 166, "red")
-            , roomDoor16: this.createRoomDoor(473, 166, "red")
-            , roomDoor01: this.createRoomDoor( 24, 222, "gray")
-            , roomDoor02: this.createRoomDoor( 89, 222, "gray")
-            , roomDoor03: this.createRoomDoor(152, 222, "gray")
-            , roomDoor04: this.createRoomDoor(345, 222, "gray")
-            , roomDoor05: this.createRoomDoor(409, 222, "gray")
-            , roomDoor06: this.createRoomDoor(473, 222, "gray")
+        this.elevator = this.createElevator(241, 166);
+                
+        this.roomDoors = [
+              this.createRoomDoor( 24, 110, "yellow")
+            , this.createRoomDoor( 89, 110, "yellow")
+            , this.createRoomDoor(152, 110, "yellow")
+            , this.createRoomDoor(345, 110, "yellow")
+            , this.createRoomDoor(409, 110, "yellow")
+            , this.createRoomDoor(473, 110, "yellow")
+            , this.createRoomDoor( 24, 166, "red")
+            , this.createRoomDoor( 89, 166, "red")
+            , this.createRoomDoor(152, 166, "red")
+            , this.createRoomDoor(345, 166, "red")
+            , this.createRoomDoor(409, 166, "red")
+            , this.createRoomDoor(473, 166, "red")
+            , this.createRoomDoor( 24, 222, "gray")
+            , this.createRoomDoor( 89, 222, "gray")
+            , this.createRoomDoor(152, 222, "gray")
+            , this.createRoomDoor(345, 222, "gray")
+            , this.createRoomDoor(409, 222, "gray")
+            , this.createRoomDoor(473, 222, "gray")
+        ];
+        
+        this.sticky_things = [
+              this.createPlant(255-40, 110)
+            , this.createPlant(315-30, 110)
+            , this.createPlant(255-40, 166)
+            , this.createPlant(315-30, 166)
+            , this.createPlant(255-40, 222)
+            , this.createPlant(315-30, 222)
             
-            , plant21: this.createPlant(255-40, 110)
-            , plant22: this.createPlant(315-30, 110)
-            , plant11: this.createPlant(255-40, 166)
-            , plant12: this.createPlant(315-30, 166)
-            , plant01: this.createPlant(255-40, 222)
-            , plant02: this.createPlant(315-30, 222)
-            
-            , railing21: this.createRailing( 24-40, 110)
-            , railing22: this.createRailing( 89-40, 110)
-            , railing23: this.createRailing(152-40, 110)
-            , railing24: this.createRailing(152-40+65, 110)
-            , railing25: this.createRailing(345-65+25, 110)
-            , railing26: this.createRailing(345+25, 110)
-            , railing27: this.createRailing(409+25, 110)
-            , railing28: this.createRailing(473+25, 110)
-            , railing11: this.createRailing( 24-40, 166)
-            , railing12: this.createRailing( 89-40, 166)
-            , railing13: this.createRailing(152-40, 166)
-            , railing14: this.createRailing(152-40+65, 166)
-            , railing15: this.createRailing(345-65+25, 166)
-            , railing16: this.createRailing(345+25, 166)
-            , railing17: this.createRailing(409+25, 166)
-            , railing18: this.createRailing(473+25, 166)
-            , railing01: this.createRailing( 24-40, 222)
-            , railing02: this.createRailing( 89-40, 222)
-            , railing03: this.createRailing(152-40, 222)
-            , railing04: this.createRailing(152-40+65, 222)
-            , railing05: this.createRailing(345-65+25, 222)
-            , railing06: this.createRailing(345+25, 222)
-            , railing07: this.createRailing(409+25, 222)
-            , railing08: this.createRailing(473+25, 222)
-            , elevatorDoor2: this.createElevatorDoor(241, 110)
-            , elevatorDoor1: this.createElevatorDoor(241, 166)
-            , elevatorDoor0: this.createElevatorDoor(241, 222)
-        };
-
-        this.enemies = {
-              a: this.createEnemy(150, 110, 'a', 10)
-            , b: this.createEnemy(200, 166, 'b', 20)
-            , c: this.createEnemy(250, 222, 'c', 30)
-        };
+            , this.createRailing( 24-40, 110)
+            , this.createRailing( 89-40, 110)
+            , this.createRailing(152-40, 110)
+            , this.createRailing(152-40+65, 110)
+            , this.createRailing(345-65+25, 110)
+            , this.createRailing(345+25, 110)
+            , this.createRailing(409+25, 110)
+            , this.createRailing(473+25, 110)
+            , this.createRailing( 24-40, 166)
+            , this.createRailing( 89-40, 166)
+            , this.createRailing(152-40, 166)
+            , this.createRailing(152-40+65, 166)
+            , this.createRailing(345-65+25, 166)
+            , this.createRailing(345+25, 166)
+            , this.createRailing(409+25, 166)
+            , this.createRailing(473+25, 166)
+            , this.createRailing( 24-40, 222)
+            , this.createRailing( 89-40, 222)
+            , this.createRailing(152-40, 222)
+            , this.createRailing(152-40+65, 222)
+            , this.createRailing(345-65+25, 222)
+            , this.createRailing(345+25, 222)
+            , this.createRailing(409+25, 222)
+            , this.createRailing(473+25, 222)
+        ];
 
         this.jones = this.createJones(250, 166);
 
+        this.subjects = {
+              jones: this.jones
+            , a: this.createEnemy(50, 110, 'a', 10)
+            , b: this.createEnemy(100, 166, 'b', 20)
+            , c: this.createEnemy(150, 222, 'c', 30) 
+        };
+
         this.camera = this.createCamera(this.jones);
-                     
-        this._reset(this);
     },
     
-    _reset: function(that) {
-        that._updateState = "reset";
-        that.camera.reset();
-        that.jones.reset();
-        for (var key in that.enemies) {
-            that.enemies[key].reset();
+    _reset: function() {
+        this._updateState = "reset";
+        this.camera.reset();
+        for (var key in this.subjects) {
+            this.subjects[key].reset();
         }
-        that._updateState = "normal";
+        this._updateState = "normal";
     },
     
-    update: function() {
-        switch(this._updateState)  {
-            case "reset":
-                this._updateReset(this);
-                break;
-            case "normal":
-                this._updateNormal(this);
-                break;
-            case "fail":
-                this._updateFail(this);
-                break;
+    _fail: function() {
+        this._updateState = "fail";
+        for (var key in this.subjects) {
+            this.subjects[key].fail();
         }
     },
     
-    createCamera: function(focus) {
+    _updateReset: function () {
+        for (var key in this.subjects) {
+            this.game.physics.arcade.collide(this.subjects[key].update(), this.floors);
+        }
+    },    
+    
+    _updateNormal: function () {
+        this.camera.update();
+                      
+        // controls
         
+        if (this.game.input.keyboard.isDown(Phaser.Keyboard.LEFT)) {
+            this.jones.turnLeft();
+        }
+        else if (this.game.input.keyboard.isDown(Phaser.Keyboard.RIGHT)) {
+            this.jones.turnRight();
+        }
+        else if (this.game.input.keyboard.isDown(Phaser.Keyboard.UP)) {
+            this.jones.jump();
+        }
+        else if (this.game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR)) {
+            if (this.elevator.collidesWithJones(this.jones)) {
+                
+            } else {
+                for(var i = 0; i<this.roomDoors.length; i++) {
+                    var roomDoor = this.roomDoors[i];
+                    if (roomDoor.collidesWithJones(this.jones)) {
+                        break;
+                    }
+                }
+            }
+        }
+    },
+    
+    _updateFail: function () {
+        if (this.jones.body.y<-1500) {
+            this._reset(); 
+            return;       
+        }
+    }, 
+    
+    ////////
+    
+    createCamera: function(focus, index) {
         var camera = {
-            game: this.game
+              game: this.game
             , _x: [0, 65, 127]
-            , _index: 1
             , _triggerLeft: [-10000, 195, 325]
             , _triggerRight: [195, 325, 10000]
             , _focus: focus
+            , _index: index || 1
             , reset: function() {
-                this._index = 1;
+                this._index = index || 1;
                 this.game.camera.x = this._x[this._index];
                 return this;
+            }
+            , render: function(){
             }
             , update: function(){
                 if (this._focus.body.velocity.x < 0 && this._focus.body.x < this._triggerLeft[this._index]) {
@@ -179,101 +280,148 @@ lobby.prototype = {
     
     createFloor(y) {
         var xxx = this.platforms.create(0, y, 'floor');
-        this._sticky(xxx);
+        this._stickyBody(xxx);
         return xxx;
     },
     
     createCeiling(y) {
         var xxx = this.platforms.create(0, y-40, 'ceiling');
-        this._sticky(xxx);
+        this._stickyBody(xxx);
         return xxx;
     },
-    
-    _sticky: function(xxx) {
-        this.game.physics.enable(xxx, Phaser.Physics.ARCADE);
-        xxx.body.immovable = true;
-        xxx.body.allowGravity = false;
-    },
-    
-    _enableBody: function(xxx) {
-        this.game.physics.enable(xxx, Phaser.Physics.ARCADE);
-        xxx.enableBody = true;
-        xxx.body.bounce.y = 0;
-        xxx.body.allowGravity = true;  
-    },
 
-    createJones: function(x, y) {
+    createJones: function(x, y, velocity) {
+        var that = this;
+        
         var xxx = this.game.add.sprite(x, y-21, 'jones');
-        xxx.animations.add('right', [0, 1, 2, 3], 10, true);
-        xxx.animations.add('left', [7, 6, 5, 4], 10, true);
-        this._enableBody(xxx);
+
+        xxx.initialize = function() {
+            that._gravityBody(this);
+            this.animations.add('right', [0, 1, 2, 3], 10, true);
+            this.animations.add('left', [7, 6, 5, 4], 10, true);
+            this._velocity = velocity || 30;
+            return this.reset();
+        };
         
         xxx.reset = function() {
-            xxx.body.x = x;
-            xxx.body.y = y-21;
-            xxx.body.velocity.y = 0;
-            xxx.turnRight();
-            return xxx;
+            this.body.x = x;
+            this.body.y = y-21;
+            this.body.velocity.y = 0;
+            this._facing = "right";
+            this.onFloor();
+            return this;
+        };
+        
+        xxx.restart = function() {
+            switch(this._facing) {
+                case "left":
+                    this.body.velocity.x = -this._velocity;
+                    break;
+                case "right":
+                    this.body.velocity.x = +this._velocity;
+                    break;
+            }
+            this.animations.play(this._facing);
+            
+            return this;
         };
         xxx.turnRight = function () {
+            if (this._updateState != "onFloor") return this;  
             if (this.body.velocity.x > 0) return this;
-
-            this.animations.play("right");
-            this.body.velocity.x = +30;
-            
-            return this;
+            this._facing = "right";
+            return xxx.restart();
         };
         xxx.turnLeft = function () {
+            if (this._updateState != "onFloor") return this;  
             if (this.body.velocity.x < 0) return this;
-            
-            this.animations.play("left");
-            this.body.velocity.x = -30;
-            
-            return this;
+            this._facing = "left";
+            return xxx.restart();
         };
         xxx.jump = function () {
+            if (this._updateState != "onFloor") return this;  
             if (this.body.velocity.y>=0) {
                 this.body.velocity.y = -100;
             }
             return this;
         };
-        xxx.update = function() {
-            if (this.body.velocity.x > 0 && this.body.x>this.game.world.bounds.width-this.body.width) {
-                this.turnLeft();
-            }
-            else if (this.body.velocity.x < 0 && this.body.x<this.game.world.bounds.x) {
-                this.turnRight();
-            }   
-            return this;        
+        xxx.stop = function() {
+            this.body.velocity.x = 0;
+            this.animations.stop();  
         };
         xxx.fail = function() {
+            this.stop();
+        };
+  
+        xxx.onFloor = function() {
+            this._updateState = "onFloor";  
+            this.body.allowGravity = true;
+            this.restart();
+        };
+        xxx.onElevator = function() {
+            this._updateState = "onElevator";  
+            this.body.allowGravity = false;
+        };
+        xxx.onFail = function() {
+            this._updateState = "onFail";  
             this.body.velocity.y = -1000;
             this.animations.stop();
         };
+
+        xxx.update = function() {
+            switch(this._updateState)  {
+                case "onElevator":
+                    this._updateOnElevator();
+                    break;
+                case "onFail":
+                    this._updateOnFail();
+                    break;
+                case "onFloor":
+                    this._updateOnFloor();
+                    break;
+            }
+        };
+        xxx._updateOnFloor = function() {
+            this.game.physics.arcade.collide(this, that.floors);      
+            
+            if (this.body.velocity.x > 0 && this.body.x> this.game.world.bounds.width-this.body.width) {
+                this.turnLeft();
+            }
+            else if (this.body.velocity.x < 0 && this.body.x< this.game.world.bounds.x) {
+                this.turnRight();
+            }   
+        };
+        xxx._updateOnElevator = function() {
+        };
+        xxx._updateOnFail = function() {
+        };
         
-        xxx.reset();
-        
-        return xxx;
+        return xxx.initialize(this);
     },
     
-    createEnemy: function(x, y, type, speed) {
+    createEnemy: function(x, y, type, velocity) {
+        var that = this;
         var xxx = this.game.add.sprite(x, y-21, type + '-enemy');
-        xxx.animations.add('right', [0, 1, 2, 3], 10, true);
-        xxx.animations.add('left', [7, 6, 5, 4], 10, true);
-        xxx._speed = speed;
-        this._enableBody(xxx);
-                
+        
+        xxx.initialize = function() {
+            that._gravityBody(this);
+            this.animations.add('right', [0, 1, 2, 3], 10, true);
+            this.animations.add('left', [7, 6, 5, 4], 10, true);
+            this._velocity = velocity || 30;
+            return this.reset();
+        };
         xxx.reset = function() {
-            xxx.body.x = x;
-            xxx.body.y = y-21;
-            xxx.turnRight();
-            return xxx;
+            this.body.x = x;
+            this.body.y = y-21;
+            this.body.velocity.y = 0;
+            this.onFloor();
+            this.turnRight();
+            return this;
         };
         xxx.turnRight = function () {
             if (this.body.velocity.x > 0) return this;
 
             this.animations.play("right");
-            this.body.velocity.x = +this._speed;
+            this.body.velocity.x = +this._velocity;
             
             return this;
         };
@@ -281,146 +429,225 @@ lobby.prototype = {
             if (this.body.velocity.x < 0) return this;
 
             this.animations.play("left");
-            this.body.velocity.x = -this._speed;
+            this.body.velocity.x = -this._velocity;
             
             return this;
         };
+        xxx.stop = function() {
+            this.body.velocity.x = 0;
+            this.animations.stop();
+        };
+        xxx.fail = function() {
+            this.stop();
+        };
+  
+        xxx.onFloor = function() {
+            this._updateState = "onFloor";  
+            this.body.allowGravity = true;
+        };
+        xxx.onElevator = function() {
+            this._updateState = "onElevator";  
+            this.body.allowGravity = false;
+        };
+        xxx.onFail = function() {
+            this._updateState = "onFail";  
+            this.body.velocity.y = -1000;
+            this.animations.stop();
+        };
+
         xxx.update = function() {
+            switch(this._updateState)  {
+                case "onElevator":
+                    this._updateOnElevator();
+                    break;
+                case "onFail":
+                    this._updateOnFail();
+                    break;
+                case "onFloor":
+                    this._updateOnFloor();
+                    break;
+            }
+        };
+        xxx._updateOnFloor = function() {
+            this.game.physics.arcade.collide(this, that.floors);      
+       
+            if (that.jones._updateState == this._updateState) {
+                this.game.physics.arcade.collide(this, that.jones, function() {
+                    that._fail();
+                });
+            }
+            
             if (this.body.velocity.x > 0 && this.body.x>this.game.world.bounds.width-this.body.width) {
                 this.turnLeft();
             }
             else if (this.body.velocity.x < 0 && this.body.x<this.game.world.bounds.width-this.body.x) {
                 this.turnRight();
             }   
-            return this;
         };
-        xxx.fail = function() {
-            this.body.velocity.x = 0;
-            this.animations.stop();
+        xxx._updateOnElevator = function() {
         };
-        xxx.reset();
+        xxx._updateOnFail = function() {
+        };
         
-        return xxx;
+        return xxx.initialize();
     },
     
     createPlant: function(x, y) {
         var xxx = this.game.add.sprite(x, y-24, 'plant');
-        xxx.animations.add('flush', [0, 1, 2, 3], 10, true);
-        this._sticky(xxx);
-        xxx.collidesWithJones = function() {
-            xxx.animations.play("flush");
-        };
-        xxx.update = function() {
-            return this;
-        };
+        this._stickyBody(xxx);
         return xxx;
     },
     
     createRailing: function(x, y) {
         var xxx = this.game.add.sprite(x, y-8, 'railing');
-        xxx.animations.add('blink', [0, 1, 2, 3], 10, true);
-        this._sticky(xxx);
-        xxx.collidesWithJones = function() {
-            xxx.animations.play("blink");
-        };
-        xxx.update = function() {
-            return this;
-        };       
+        this._stickyBody(xxx);
         return xxx;
     },
 
     createRoomDoor: function(x, y, colorName) {
+        var that = this;
         var xxx = this.game.add.sprite(x, y-24, colorName + '-door');
-        xxx.animations.add('open', [0, 1, 2, 3], 10, true);
-        xxx.animations.add('close', [7, 6, 5, 4], 10, true);
-        this._sticky(xxx);
-        xxx.collidesWithJones = function() {
-            xxx.animations.play("open");
-            // hide jones
-            xxx.animations.play("close");
+        
+        xxx.initialize = function() {
+            that._stickyBody(this);
+            this.animations.add('open', [0, 1, 2, 3], 10, true);
+            this.animations.add('close', [7, 6, 5, 4], 10, true);
+            return this.reset();
+        };
+        xxx.collidesWithJones = function(jones) {
+            return false;
+        };
+        xxx.reset = function() {
+            return xxx;
         };
         xxx.update = function() {
-            return this;
         };       
+        
         return xxx;
     },
 
     createElevatorDoor: function(x, y) {
-        var xxx = this.game.add.sprite(x, y-30, 'elevator-door');
-        xxx.animations.add('open', [0, 1, 2, 3], 10, true);
-        xxx.animations.add('close', [7, 6, 5, 4], 10, true);
-        this._sticky(xxx);
-        xxx.collidesWithJones = function() {
-            xxx.animations.play("open");
-            // hide jones
-            xxx.animations.play("close");
+        var that = this;
+        var xxx = this.game.add.sprite(x, y-32, 'elevator-door');
+        
+        xxx.initialize = function() {
+            that._stickyBody(this);
+            var open = this.animations.add('open', [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 10, false);
+            open.onComplete.add(this._onOpened, this);
+            var close = this.animations.add('close', [19, 18,17,16,15,14,13,12,11,10], 10, false);
+            close.onComplete.add(this._onClosed, this);
+            return this.reset();
+        };
+        xxx._onOpened = function() {
+            if (this._customOnOpened != undefined) {
+                this._customOnOpened();
+            }
+            this.animations.play("close");
+        };
+        xxx._onClosed = function() {
+            if (this._customOnClosed != undefined) {
+                this._customOnClosed();
+            }          
+            return this.reset();
+        };
+
+        xxx.enter = function(onOpened, onClosed) {
+            this._customOnOpened = onOpened;
+            this._customOnClosed = onClosed;
+            this.animations.play("open");
+            return this;
+        };
+
+        xxx.exit = function(onOpened, onClosed) {
+            this._customOnOpened = onOpened;
+            this._customOnClosed = onClosed;
+            this.animations.play("open");
+            return this;
+        };
+
+        xxx.reset = function() {
+            this._customOnOpened = undefined;
+            this._customOnClosed = undefined;
+            return this;
         };
         xxx.update = function() {
-            return this;
         };       
-        return xxx;
-    },
         
-    render: function() {
-        // jones info
-        // this.game.debug.text("jones.body.y=" + this.jones.body.y, 10, 10);
-        
-        // camera debugging
-        // this.game.debug.text("cameraIndex=" + this.cameraIndex, 10, 10);
-        // this.game.debug.text("this.game.camera.x=" + this.game.camera.x, 10, 30);
-        // this.game.debug.text("this.cameraX[this.cameraIndex-1]=" + this.cameraX[this.cameraIndex-1], 10, 50);
-        // this.game.debug.text("this.cameraX[this.cameraIndex+1]=" + this.cameraX[this.cameraIndex+1], 10, 70);
+        return xxx.initialize();
     },
-    _fail: function(that) {
-        that._updateState = "fail";
-        that.jones.fail();
-        for (var key in that.enemies) {
-            that.enemies[key].fail();
-        }
-    },
-    _updateNormal: function (that) {
-        that.camera.update();
 
-        that.jones.update();
-        that.game.physics.arcade.collide(that.jones.update(), that.floors);      
-        for (var key in that.enemies) {
-            that.game.physics.arcade.collide(that.enemies[key].update(), that.floors);
-            that.game.physics.arcade.collide(that.enemies[key], that.jones, function() {
-                that._fail(that);
-            });
-        }
-        // for (var key in this.sticky_things) {
-        //     this.game.physics.arcade.collide(this.sticky_things[key].update(), this.platforms);      
-        // }
-                      
-        // controls
+    createElevator: function() {
+        var that = this;
         
-        if (that.game.input.keyboard.isDown(Phaser.Keyboard.LEFT)) {
-            that.jones.turnLeft();
-        }
-        else if (that.game.input.keyboard.isDown(Phaser.Keyboard.RIGHT)) {
-            that.jones.turnRight();
-        }
-        else if (that.game.input.keyboard.isDown(Phaser.Keyboard.UP)) {
-            that.jones.jump();
-        }
-        else if (that.game.input.keyboard.isDown(Phaser.Keyboard.DOWN)) {
-           that.jones.jump();
-        }
-    },
-    _updateReset: function (that) {
-        that.game.physics.arcade.collide(that.jones.update(), that.floors);      
-        for (var key in that.enemies) {
-            that.game.physics.arcade.collide(that.enemies[key].update(), that.floors);
-        }
-    },    
-    _updateFail: function (that) {
-        if (that.jones.body.y<-1500) {
-            that._reset(that); 
-            return;       
-        }
-        for (var key in that.enemies) {
-            that.game.physics.arcade.collide(that.enemies[key].update(), that.floors);
-        }
+        var xxx = this.game.add.sprite(241, 166-32, 'elevator');
+        
+        xxx.initialize = function() {
+            that._stickyBody(this);
+            this.doors = [
+                  that.createElevatorDoor(241, 110)
+                , that.createElevatorDoor(241, 166)
+                , that.createElevatorDoor(241, 222)
+            ];
+            return this.reset();
+        };
+        xxx.reset = function(currentDoorIndex) {
+            this.jones = undefined;
+            this.currentDoorIndex = currentDoorIndex || 1;
+            this.currentDoor = this.doors[this.currentDoorIndex];
+            return this;
+        };
+        xxx.collidesWithJones = function(jones) {
+            var that = this;
+            if (this.jones != undefined) return true;  
+                    
+            if (!Phaser.Rectangle.intersects(this.getBounds(), jones.getBounds())) return false;
+            
+            jones.stop();
+            
+            this.currentDoor.enter(
+                function() { // onOpened
+                    that.game.world.swap(that.currentDoor, jones);
+                    jones.onElevator();                    
+                    switch(that.currentDoorIndex) {
+                        case 0:
+                        case 2:
+                            that.currentDoorIndex = 1;
+                            break;
+                        default:
+                            that.currentDoorIndex = that.currentDoorIndex+1;
+                            break;
+                    }
+                },
+                function() {
+                    that.currentDoor = that.doors[that.currentDoorIndex];
+                    that.jones = jones;
+                    // start animation
+                }
+            );
+            return this.collidingWithJones;
+        };
+        xxx.update = function() {
+            var that = this;
+            if (this.jones != undefined) {  
+                if (this.body.y>this.currentDoor.body.y) {
+                    this.body.y--;
+                    this.jones.body.y--;
+                }
+                else if (this.body.y<this.currentDoor.body.y) {
+                    this.body.y++;
+                    this.jones.body.y++;
+                }
+                else {
+                    this.currentDoor.exit(function() {
+                        that.game.world.swap(that.currentDoor, that.jones);
+                        that.jones.onFloor();                    
+                        that.jones = undefined;
+                        that.reset(that.currentDoorIndex);
+                    });
+                }            
+            }
+        };
+
+        return xxx.initialize();
     }
 }
