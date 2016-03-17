@@ -13,13 +13,18 @@ lobby.prototype = {
         xxx.body.immovable = true;
         xxx.body.allowGravity = false;
     },
+        
+    _mobileBody: function(xxx) {
+        this.game.physics.enable(xxx, Phaser.Physics.ARCADE);
+        xxx.enableBody = true;
+    },
     
     _gravityBody: function(xxx) {
         this.game.physics.enable(xxx, Phaser.Physics.ARCADE);
         xxx.enableBody = true;
         xxx.body.allowGravity = true;  
     },
-
+    
     ///
     /// Phaser events
     ///
@@ -37,8 +42,8 @@ lobby.prototype = {
         
     render: function() {
         // jones info
-        this.game.debug.text("jones.body.y=" + this.jones.body.y, 10, 10);
-        this.game.debug.text("jones.body.velocity.y=" + this.jones.body.velocity.y, 10, 20);
+        // this.game.debug.text("jones.body.y=" + this.jones.body.y, 10, 10);
+        // this.game.debug.text("jones.body.velocity.y=" + this.jones.body.velocity.y, 10, 20);
         // this.game.debug.text(this.jones);
         // camera debugging
         // this.game.debug.text("cameraIndex=" + this.cameraIndex, 10, 10);
@@ -65,13 +70,13 @@ lobby.prototype = {
     
     _preloadImages: function() {
         this.game.load.image('lobby', 'assets/background/lobby.png');
-        this.game.load.image('floor', 'assets/background/floor.png');
+        this.game.load.image('floor', 'assets/background/floor_lobby.png');
         this.game.load.image('ceiling', 'assets/background/ceiling.png');
         this.game.load.image('logo', 'assets/lazyjones_lobby.png');
     },
     
     _preloadSpritesheets: function() {
-        this.game.load.spritesheet('yellow-door', 'assets/spritesheet/yellow-door.png');
+        this.game.load.spritesheet('yellow-door', 'assets/spritesheet/yellow-door.png',24 ,24);
         this.game.load.spritesheet('red-door', 'assets/spritesheet/red-door.png',24 ,24);
         this.game.load.spritesheet('gray-door', 'assets/spritesheet/gray-door.png',24 ,24);
         this.game.load.spritesheet('elevator-door', 'assets/spritesheet/elevator-door.png',40 ,32);        
@@ -205,7 +210,6 @@ lobby.prototype = {
     },    
     
     _updateNormal: function () {
-        this.camera.update();
                       
         // controls
         
@@ -361,6 +365,10 @@ lobby.prototype = {
             this._updateState = "onElevator";  
             this.body.allowGravity = false;
         };
+        xxx.onRoom = function() {
+            this._updateState = "onRoom";  
+            this.body.allowGravity = false;
+        };
         xxx.onFail = function() {
             this._updateState = "onFail";  
             this.body.velocity.y = -1000;
@@ -371,6 +379,9 @@ lobby.prototype = {
             switch(this._updateState)  {
                 case "onElevator":
                     this._updateOnElevator();
+                    break;
+                case "onRoom":
+                    this._updateOnRoom();
                     break;
                 case "onFail":
                     this._updateOnFail();
@@ -391,6 +402,8 @@ lobby.prototype = {
             }   
         };
         xxx._updateOnElevator = function() {
+        };
+        xxx._updateOnRoom = function() {
         };
         xxx._updateOnFail = function() {
         };
@@ -510,20 +523,72 @@ lobby.prototype = {
         
         xxx.initialize = function() {
             that._stickyBody(this);
-            this.animations.add('open', [0, 1, 2, 3], 10, true);
-            this.animations.add('close', [7, 6, 5, 4], 10, true);
+            var open = this.animations.add('open', [0,1,2,3,4,5,6,7,8], 10, false);
+            open.onComplete.add(this._onOpened, this);
+            var close = this.animations.add('close', [8,7,6,5,4,3,2,1,0], 10, false);
+            close.onComplete.add(this._onClosed, this);
             return this.reset();
         };
+        xxx._onOpened = function() {
+            if (this._customOnOpened != undefined) {
+                this._customOnOpened();
+            }
+            this.animations.play("close");
+        };
+        xxx._onClosed = function() {
+            if (this._customOnClosed != undefined) {
+                this._customOnClosed();
+            }          
+            return this.reset();
+        };
+
+        xxx.enter = function(onOpened, onClosed) {
+            this._customOnOpened = onOpened;
+            this._customOnClosed = onClosed;
+            this.animations.play("open");
+            return this;
+        };
+
+        xxx.exit = function(onOpened, onClosed) {
+            this._customOnOpened = onOpened;
+            this._customOnClosed = onClosed;
+            this.animations.play("open");
+            return this;
+        };
+
+        xxx.reset = function() {
+            this._customOnOpened = undefined;
+            this._customOnClosed = undefined;
+            return this;
+        };
+        
         xxx.collidesWithJones = function(jones) {
-            return false;
+            var that = this;
+            if (this.jones != undefined) return true;  
+     
+            if (!Phaser.Rectangle.intersects(this.getBounds(), jones.getBounds())) return false;
+            
+            jones.stop();
+            
+            this.enter(
+                function() {
+                    that.game.world.swap(that, jones);
+                    jones.onRoom();                    
+                },
+                function() {
+                    // goto new state
+		            this.game.state.start("gameRoom");
+                }
+            );
+            return this.collidingWithJones;
         };
         xxx.reset = function() {
-            return xxx;
+            return this;
         };
         xxx.update = function() {
         };       
         
-        return xxx;
+        return xxx.initialize();
     },
 
     createElevatorDoor: function(x, y) {
@@ -534,7 +599,7 @@ lobby.prototype = {
             that._stickyBody(this);
             var open = this.animations.add('open', [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 10, false);
             open.onComplete.add(this._onOpened, this);
-            var close = this.animations.add('close', [19, 18,17,16,15,14,13,12,11,10], 10, false);
+            var close = this.animations.add('close', [9, 8,7,6,5,4,3,2,1,0], 10, false);
             close.onComplete.add(this._onClosed, this);
             return this.reset();
         };

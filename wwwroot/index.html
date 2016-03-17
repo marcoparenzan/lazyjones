@@ -10,6 +10,7 @@
 		<script src="scripts/select_controls.js"></script>
 		<script src="scripts/select_lives.js"></script>
         <script src="scripts/lobby.js"></script>
+        <script src="scripts/gameRoom.js"></script>
         <script src="scripts/gameover.js"></script>
         <style>
             body{margin:0}
@@ -24,6 +25,7 @@
 				game.state.add("select_controls",select_controls);
 				game.state.add("select_lives",select_lives);
 				game.state.add("lobby",lobby);
+				game.state.add("gameRoom",gameRoom);
 				game.state.add("gameover",gameover);
                 game.state.start("boot");
 			})();    
