@@ -299,7 +299,7 @@ the_turk.prototype = {
             this.game.physics.arcade.collide(this, that.conveyor);      
 
             this.game.physics.arcade.collide(this, that.pot, function() {
-                that._stop(["turk"]);
+                that._stop(["turk", "fork"]);
             });
         };
         xxx.stop = function() {
